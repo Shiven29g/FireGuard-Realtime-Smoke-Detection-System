@@ -1,0 +1,104 @@
+Smart Smoke Detection System with Real-Time Alerts
+
+name-shiven gupta
+linkedin-https://www.linkedin.com/in/shiven-gupta-85979227a/
+Overview
+
+This project implements a Smart Smoke Detection System that utilizes IoT and machine learning to monitor and alert users about fire hazards in real time. The system collects data from various sensors and sends notifications via a cloud platform.
+Table of Contents
+
+    Features
+    Hardware Requirements
+    Software Requirements
+    Installation Instructions
+    Running the Project
+    Usage
+    Troubleshooting
+    Future Enhancements
+    License
+
+Features
+
+    Real-time detection of smoke and flames.
+    Cloud connectivity for remote monitoring.
+    Machine learning classification of fire types.
+    Instant notifications via SMS, email, or app alerts.
+    Integration with smart home systems for safety automation.
+
+Hardware Requirements
+
+    Node MCU (ESP8266 or ESP32)
+    MQ-2 Smoke Sensor
+    Flame Sensor
+    DHT11 Temperature and Humidity Sensor (optional)
+    Breadboard and jumper wires
+    Power Supply (USB adapter or battery)
+
+Software Requirements
+
+    Arduino IDE: Download here
+    Libraries:
+        DHT sensor library (for DHT11)
+        PubSubClient (for MQTT)
+    Install these libraries through the Arduino Library Manager.
+
+Installation Instructions
+Step 1: Hardware Setup
+
+    Connect the MQ-2 Smoke Sensor to the Node MCU:
+        VCC to 3.3V
+        GND to GND
+        Analog output to an analog pin (e.g., A0)
+
+    Connect the Flame Sensor:
+        VCC to 3.3V
+        GND to GND
+        Digital output to a digital pin (e.g., D5)
+
+    (Optional) Connect the DHT11 Sensor:
+        VCC to 3.3V
+        GND to GND
+        Data pin to a digital pin (e.g., D4)
+
+Step 2: Software Setup
+
+    Install the Arduino IDE and the required libraries.
+    Open the provided Embedded C code for the Node MCU in the Arduino IDE.
+    Update the following in the code:
+        Your WiFi SSID and password.
+        MQTT broker details (server, port, username, password).
+        MQTT topic for publishing data.
+
+Step 3: Upload the Code
+
+    Connect your Node MCU to your computer via USB.
+    Select the correct board and port in the Arduino IDE.
+    Upload the code.
+
+Running the Project
+
+    Power on the system by connecting the Node MCU to a power supply.
+    Open the Serial Monitor in the Arduino IDE to view real-time sensor readings.
+    Ensure your MQTT broker is running and configured to receive messages from the Node MCU.
+
+Usage
+
+    The system will continuously read data from the sensors.
+    Notifications will be sent based on smoke or flame detection.
+    Data can be monitored on your chosen IoT platform.
+
+Troubleshooting
+
+    WiFi Connection Issues: Double-check your WiFi credentials.
+    Sensor Not Responding: Ensure connections are secure and sensors are powered.
+    MQTT Connection Problems: Verify broker settings and ensure it is running.
+
+Future Enhancements
+
+    Implement additional sensor types for more comprehensive monitoring.
+    Integrate a web or mobile interface for easier access to data.
+    Enhance the machine learning model to reduce false alarms.
+
+License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
