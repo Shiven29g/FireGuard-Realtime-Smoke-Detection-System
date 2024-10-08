@@ -1,119 +1,160 @@
-#include <ESP8266WiFi.h>        // For ESP8266
-#include <PubSubClient.h>       // For MQTT
-#include <DHT.h>                // If using DHT sensor for temperature/humidity
+// Fill-in information from your Blynk Template here
+#define BLYNK_TEMPLATE_ID "TMPLr5v9dbdK"
+#define BLYNK_DEVICE_NAME "Smoke Detector"
 
-// WiFi credentials
-const char* ssid = "your_SSID";           // Replace with your WiFi SSID
-const char* password = "your_PASSWORD";    // Replace with your WiFi password
+#define BLYNK_FIRMWARE_VERSION        "0.1.0"
 
-// MQTT Broker details
-const char* mqttServer = "broker.hivemq.com"; // Replace with your MQTT Broker
-const int mqttPort = 1883;                   // MQTT port
-const char* mqttUser = "";                   // MQTT username if needed
-const char* mqttPassword = "";               // MQTT password if needed
+#define BLYNK_PRINT Serial
+//#define BLYNK_DEBUG
 
-// Initialize DHT sensor
-#define DHTPIN D4              // Pin where DHT is connected
-#define DHTTYPE DHT11          // DHT 11
-DHT dht(DHTPIN, DHTTYPE);
+#define APP_DEBUG
 
-// Define sensor pins
-#define SMOKE_SENSOR_PIN A0    // Analog pin for smoke sensor
-#define FLAME_SENSOR_PIN D5    // Digital pin for flame sensor
+// Uncomment your board, or configure a custom board in Settings.h
+//#define USE_SPARKFUN_BLYNK_BOARD
+#define USE_NODE_MCU_BOARD
+//#define USE_WITTY_CLOUD_BOARD
+//#define USE_WEMOS_D1_MINI
 
-// MQTT Client
-WiFiClient espClient;
-PubSubClient client(espClient);
+#include "BlynkEdgent.h"
+#include <MQ2.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
-// Function declarations
-void setupWiFi();
-void reconnect();
-void publishData(float temperature, float humidity, int smokeLevel, int flameDetected);
 
-void setup() {
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+
+
+#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+#define BUZZ      12 //D6 
+#define LED       14 //D5
+//change this with the pin that you use
+int pin = A0;
+float lpg, co, smoke;
+MQ2 mq2(pin);
+int button1 = 0;
+int button2 = 0;
+SimpleTimer timer;
+
+void setup()
+{
   Serial.begin(115200);
-  setupWiFi();
-  
-  client.setServer(mqttServer, mqttPort);
+  delay(100);
 
-  // Initialize DHT sensor
-  dht.begin();
-  
-  pinMode(FLAME_SENSOR_PIN, INPUT);
+  BlynkEdgent.begin();
+
+  pinMode(BUZZ, OUTPUT);
+  pinMode(LED, OUTPUT);
+
+  digitalWrite(BUZZ, LOW);
+  digitalWrite(LED, LOW);
+
+  // calibrate the device
+  mq2.begin();
+
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;); // Don't proceed, loop forever
+  }
+  delay(2000);
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);        // Draw white text
+  display.setCursor(0, 0);
+  display.println(" IoT Smoke ");
+  display.setCursor(0, 20);
+  display.println("  Detector  ");
+  display.display();
+  delay(1000);
+  timer.setInterval(1000L, sendSensorData);
+
 }
 
 void loop() {
-  if (!client.connected()) {
-    reconnect();
+  timer.run(); // Initiates SimpleTimer
+  BlynkEdgent.run();
+}
+void sendSensorData()
+{
+  float* values = mq2.read(true); //set it false if you don't want to print the values to the Serial
+  co = mq2.readCO();
+  smoke = mq2.readSmoke();
+  lpg = mq2.readLPG();
+
+  if (button1 == 1)
+  {
+    // display LPG
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setCursor(0, 0);
+    display.print("    LPG   ");
+    display.setCursor(10, 30);
+    display.print(lpg);
+    display.setTextSize(1);
+    display.print(" PPM");
+    delay(5000);
+    display.display();
   }
-  client.loop();
+  else if (button2 == 1)
+  {
+    // display CO
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setCursor(0, 0);
+    display.print("    CO    ");
+    display.setCursor(10, 30);
+    display.print(co);
+    display.setTextSize(1);
+    display.print(" PPM");
+    delay(5000);
+    display.display();
+  }
+  else {
 
-  // Read temperature and humidity
-  float temperature = dht.readTemperature();
-  float humidity = dht.readHumidity();
-
-  // Read smoke sensor value
-  int smokeLevel = analogRead(SMOKE_SENSOR_PIN);
-  // Read flame sensor value
-  int flameDetected = digitalRead(FLAME_SENSOR_PIN);
-
-  // Check for error in reading
-  if (isnan(temperature) || isnan(humidity)) {
-    Serial.println("Failed to read from DHT sensor!");
-    return;
+    // display Smoke
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setCursor(0, 0);
+    display.print("   SMOKE   ");
+    display.setCursor(10, 30);
+    display.print(smoke);
+    display.setTextSize(1);
+    display.print(" PPM");
+    delay(5000);
+    display.display();
   }
 
-  // Print values to Serial Monitor
-  Serial.print("Temperature: ");
-  Serial.print(temperature);
-  Serial.print(" °C, Humidity: ");
-  Serial.print(humidity);
-  Serial.print("%, Smoke Level: ");
-  Serial.print(smokeLevel);
-  Serial.print(", Flame Detected: ");
-  Serial.println(flameDetected);
+  Blynk.virtualWrite(V1, smoke);
+  Blynk.virtualWrite(V2, lpg);
+  Blynk.virtualWrite(V3, co);
+  if (smoke > 50 ) {
+    Blynk.logEvent("smoke", "Smoke Detected!");
+    digitalWrite(BUZZ, HIGH);
+    digitalWrite(LED, HIGH);
+  }
+  else {
+    digitalWrite(BUZZ, LOW);
+    digitalWrite(LED, LOW);
+  }
 
-  // Publish data to MQTT
-  publishData(temperature, humidity, smokeLevel, flameDetected);
-
-  // Delay before the next loop
-  delay(5000);  // Adjust delay as necessary
 }
 
-void setupWiFi() {
-  Serial.println("Connecting to WiFi...");
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("WiFi connected");
+
+// in Blynk app writes values to the Virtual Pin 4
+BLYNK_WRITE(V4)
+{
+  button1 = param.asInt(); // assigning incoming value from pin V4 to a variable
+}
+// in Blynk app writes values to the Virtual Pin 5
+BLYNK_WRITE(V5)
+{
+  button2 = param.asInt(); // assigning incoming value from pin V5 to a variable
 }
 
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (client.connect("NodeMCU_Client", mqttUser, mqttPassword)) {
-      Serial.println("connected");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      delay(5000);
-    }
-  }
-}
-
-void publishData(float temperature, float humidity, int smokeLevel, int flameDetected) {
-  // Create JSON formatted string
-  String jsonData = "{\"temperature\":" + String(temperature) +
-                    ",\"humidity\":" + String(humidity) +
-                    ",\"smoke_level\":" + String(smokeLevel) +
-                    ",\"flame_detected\":" + String(flameDetected) + "}";
-  
-  // Publish data to MQTT topic
-  client.publish("your_topic/data", jsonData.c_str()); // Replace with your MQTT topic
-  Serial.println("Data published: " + jsonData);
-}
